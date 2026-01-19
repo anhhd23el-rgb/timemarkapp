@@ -6,7 +6,6 @@ from datetime import timedelta
 from functools import wraps
 
 from flask import Flask, Response, g, redirect, request, session, send_from_directory
-from werkzeug.security import check_password_hash, generate_password_hash
 
 # =========================
 # Config
@@ -593,7 +592,7 @@ BASE_CSS = r"""
 def render_page(title: str, body_html: str, user_row=None) -> str:
     right_html = ""
     if user_row is not None:
-        display = user_row.get("display_name") or user_row["username"]
+        display = user_row["display_name"] if user_row["display_name"] else user_row["username"]
         right_html = (
             f'<span class="badge">{display} · {user_row["role"]}</span>'
             ' <a class="badge" href="/logout">Đăng xuất</a>'
@@ -695,11 +694,8 @@ def logout():
 
 
 # =========================
-# Main app - TIẾP THEO PHẦN 2
+# Main app
 # =========================
-
-# Phần còn lại của INDEX_HTML và các route
-
 INDEX_HTML = r"""
 <div class="wrap">
   <div class="panel">
@@ -823,7 +819,9 @@ def index():
     return Response(render_page("TimeMark", INDEX_HTML, user), mimetype="text/html; charset=utf-8")
 
 
-# Admin panel - FULL CODE HERE
+# =========================
+# Admin panel
+# =========================
 @app.get("/admin")
 @admin_required
 def admin():
@@ -862,7 +860,7 @@ def admin():
             "<button class='secondary' type='submit' style='padding:8px 12px;'>🔐</button>"
             "</form>"
             "<form method='post' action='/admin/delete_user' style='display:inline;' "
-            "onsubmit='return confirm("⚠️ Xác nhận xóa user này?");'>"
+            "onsubmit='return confirm(\"⚠️ Xác nhận xóa user này?\");'>"
             f"<input type='hidden' name='username' value='{u['username']}'>"
             f"<input type='hidden' name='uid' value='{u['id']}'>"
             "<button class='danger' type='submit' style='padding:8px 12px;'>🗑️</button>"
