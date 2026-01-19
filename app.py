@@ -68,6 +68,21 @@ def init_db():
 @app.before_request
 def _ensure_db():
     init_db()
+    
+    # Kiểm tra user còn tồn tại và quyền hạn đúng
+    if "uid" in session and request.endpoint not in ['login', 'login_post', 'static']:
+        db = get_db()
+        user = db.execute("SELECT id, role FROM users WHERE id=?", (session["uid"],)).fetchone()
+        
+        # Nếu user không tồn tại (đã bị xóa) → Logout
+        if user is None:
+            session.clear()
+            return redirect("/login?msg=⚠️+Tài+khoản+đã+bị+xóa")
+        
+        # Nếu role thay đổi → Logout
+        if user["role"] != session.get("role"):
+            session.clear()
+            return redirect("/login?msg=⚠️+Quyền+hạn+đã+thay+đổi,+vui+lòng+đăng+nhập+lại")
 
 
 # =========================
@@ -947,9 +962,7 @@ def admin_set_password():
     db = get_db()
     db.execute("UPDATE users SET password=? WHERE username=?", (new_password, username))
     db.commit()
-    if uid and session.get("uid") == int(uid):
-        session.clear()
-        return redirect("/login?msg=🔐+Mật+khẩu+đã+đổi,+vui+lòng+đăng+nhập+lại")
+    # Không cần logout vì password thay đổi không ảnh hưởng session
     return redirect("/admin")
 
 @app.post("/admin/set_role")
@@ -968,11 +981,7 @@ def admin_set_role():
             return redirect("/admin")
     db.execute("UPDATE users SET role=? WHERE username=?", (role, username))
     db.commit()
-    if uid and session.get("uid") == int(uid):
-        session["role"] = role
-        if role != "admin":
-            session.clear()
-            return redirect("/login?msg=⚠️+Quyền+hạn+đã+thay+đổi,+vui+lòng+đăng+nhập+lại")
+    # User sẽ tự động logout khi refresh trang nhờ @app.before_request
     return redirect("/admin")
 
 @app.post("/admin/delete_user")
@@ -990,9 +999,7 @@ def admin_delete_user():
             return redirect("/admin")
     db.execute("DELETE FROM users WHERE username=?", (username,))
     db.commit()
-    if uid and session.get("uid") == int(uid):
-        session.clear()
-        return redirect("/login?msg=⚠️+Tài+khoản+đã+bị+xóa")
+    # User sẽ tự động logout khi refresh trang nhờ @app.before_request
     return redirect("/admin")
 
 if __name__ == "__main__":
